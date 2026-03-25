@@ -5,8 +5,8 @@ services:
     env_file: .env
     volumes:
       - ./logs:/app/logs
-      - ./models:/app/models          # Директория для всех моделей (мультисимвольных)
-      - ./data:/app/data              # Журнал сделок и аналитика
+      - ./models:/app/models
+      - ./data:/app/data
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]

@@ -28,11 +28,15 @@ credentials.*
 # Модели (большие бинарные файлы)
 *.pth
 models/
+model_*.pth
 
 # Данные и логи
 logs/
 data/
 trade_journal.csv
+
+# Кэш
+__pycache__/
 
 # Docker
 docker-compose.override.yml
