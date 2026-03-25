@@ -109,9 +109,9 @@ class TradeJournal:
 
         if not trades:
             return {
-                'win_rate': 0.52,  # дефолт
-                'avg_win': 0.015,
-                'avg_loss': 0.01,
+                'win_rate': 0.0,
+                'avg_win': 0.0,
+                'avg_loss': 0.0,
                 'total_trades': 0,
                 'total_pnl': 0.0,
                 'max_drawdown': 0.0,
@@ -122,9 +122,9 @@ class TradeJournal:
         losses = [t['pnl_pct'] for t in trades if t['pnl_pct'] and float(t['pnl_pct']) <= 0]
         all_pnl = [float(t['pnl_pct']) for t in trades if t['pnl_pct']]
 
-        win_rate = len(wins) / len(trades) if trades else 0.52
-        avg_win = sum(float(w) for w in wins) / len(wins) / 100 if wins else 0.015
-        avg_loss = abs(sum(float(l) for l in losses) / len(losses) / 100) if losses else 0.01
+        win_rate = len(wins) / len(trades) if trades else 0.0
+        avg_win = sum(float(w) for w in wins) / len(wins) / 100 if wins else 0.0
+        avg_loss = abs(sum(float(l) for l in losses) / len(losses) / 100) if losses else 0.0
 
         # Max drawdown
         cumulative = 0.0
