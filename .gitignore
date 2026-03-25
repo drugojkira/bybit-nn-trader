@@ -1,0 +1,42 @@
+# Среда разработки
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+venv/
+venv312/
+.venv/
+env/
+
+# Секреты — НИКОГДА не коммитить!
+.env
+*.key
+*.pem
+credentials.*
+
+# Модели (большие бинарные файлы)
+*.pth
+models/
+
+# Данные и логи
+logs/
+data/
+trade_journal.csv
+
+# Docker
+docker-compose.override.yml
+
+# OS
+.DS_Store
+Thumbs.db
