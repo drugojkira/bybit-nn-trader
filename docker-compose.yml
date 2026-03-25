@@ -1,0 +1,9 @@
+version: '3.9'
+services:
+  trader:
+    build: .
+    env_file: .env
+    volumes:
+      - ./logs:/app/logs
+      - ./model.pth:/app/model.pth
+    restart: unless-stopped

@@ -1,0 +1,11 @@
+fastapi==0.115.0
+uvicorn[standard]==0.32.0
+ccxt==4.4.0
+ccxt-pro==2.0.0          # или последняя версия
+torch==2.4.1
+pandas==2.2.3
+numpy==2.1.2
+python-dotenv==1.0.1
+apscheduler==3.10.4
+loguru==0.7.2
+python-telegram-bot==21.9
