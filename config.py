@@ -3,9 +3,9 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# Bybit
-API_KEY = os.getenv("BYBIT_API_KEY")
-API_SECRET = os.getenv("BYBIT_API_SECRET")
+# Binance
+API_KEY = os.getenv("BINANCE_API_KEY")
+API_SECRET = os.getenv("BINANCE_API_SECRET")
 TESTNET = os.getenv("TESTNET", "true").lower() == "true"
 
 # Telegram
@@ -26,4 +26,9 @@ TRAILING_STOP_PCT = float(os.getenv("TRAILING_STOP_PCT", 0.5))
 SL_ATR_MULTIPLIER = float(os.getenv("SL_ATR_MULTIPLIER", 2.0))
 TP_ATR_MULTIPLIER = float(os.getenv("TP_ATR_MULTIPLIER", 4.0))
 
-CCXT_SYMBOLS = [f"{s}/USDT:USDT" for s in SYMBOLS]
+# Новые параметры
+SIGNAL_THRESHOLD_MIN = float(os.getenv("SIGNAL_THRESHOLD_MIN", 0.001))  # мин. порог 0.1%
+SIGNAL_THRESHOLD_MAX = float(os.getenv("SIGNAL_THRESHOLD_MAX", 0.01))   # макс. порог 1.0%
+KELLY_LOOKBACK_TRADES = int(os.getenv("KELLY_LOOKBACK_TRADES", 100))    # сделок для Kelly
+
+CCXT_SYMBOLS = [f"{s[:-4]}/{s[-4:]}" for s in SYMBOLS]  # BTCUSDT -> BTC/USDT
