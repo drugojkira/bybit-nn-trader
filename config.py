@@ -38,7 +38,17 @@ ONLINE_TRAIN_EPOCHS = int(os.getenv("ONLINE_TRAIN_EPOCHS", 3))
 BATCH_SIZE = int(os.getenv("BATCH_SIZE", 64))
 EARLY_STOPPING_PATIENCE = int(os.getenv("EARLY_STOPPING_PATIENCE", 5))
 LEARNING_RATE = float(os.getenv("LEARNING_RATE", 1e-4))
-WEIGHT_DECAY = float(os.getenv("WEIGHT_DECAY", 1e-3))
+WEIGHT_DECAY = float(os.getenv("WEIGHT_DECAY", 1e-4))  # Умеренная L2 регуляризация
+
+# Anti-overfitting
+TRAIN_EVERY_N_CANDLES = int(os.getenv("TRAIN_EVERY_N_CANDLES", 6))  # Обучаем каждые N свечей (6 = каждые 30мин при 5m TF)
+NOISE_STD = float(os.getenv("NOISE_STD", 0.005))  # Gaussian noise injection
+LR_SCHEDULER_FACTOR = float(os.getenv("LR_SCHEDULER_FACTOR", 0.5))  # Множитель снижения LR
+LR_SCHEDULER_PATIENCE = int(os.getenv("LR_SCHEDULER_PATIENCE", 10))  # Шагов без улучшения до снижения LR
+
+# Мульти-позиции
+MAX_POSITIONS_PER_SYMBOL = int(os.getenv("MAX_POSITIONS_PER_SYMBOL", 1))  # Макс позиций на 1 символ
+MAX_TOTAL_POSITIONS = int(os.getenv("MAX_TOTAL_POSITIONS", 5))  # Макс позиций всего
 
 # Мониторинг
 REPORT_INTERVAL_CANDLES = int(os.getenv("REPORT_INTERVAL_CANDLES", 50))

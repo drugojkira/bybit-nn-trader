@@ -4,6 +4,7 @@ from loguru import logger
 from data_fetcher import exchange, spot_exchange, get_atr, fetch_ohlcv_async
 from risk_manager import calculate_position_size, set_tp_sl_trailing
 from trade_journal import journal
+from config import CCXT_SYMBOLS
 
 
 MAX_RETRIES = 3
@@ -11,6 +12,7 @@ RETRY_DELAY = 2.0
 
 
 async def retry_exchange_call(func, *args, retries=MAX_RETRIES, **kwargs):
+    """Обёртка для sync-вызовов биржи через executor с retry"""
     loop = asyncio.get_event_loop()
     for attempt in range(retries):
         try:
@@ -30,11 +32,14 @@ async def retry_exchange_call(func, *args, retries=MAX_RETRIES, **kwargs):
     raise ccxt.NetworkError(f"Исчерпаны попытки ({retries}) для {func.__name__}")
 
 
+# === Получение позиций ===
+
 async def get_current_position(symbol: str):
+    """Получение стороны текущей позиции по символу"""
     try:
         positions = await retry_exchange_call(exchange.fetch_positions, [symbol])
         for pos in positions:
-            if float(pos.get('contracts', 0)) != 0:
+            if float(pos.get('contracts') or 0) != 0:
                 return pos['side'].lower()
         return None
     except Exception as e:
@@ -43,18 +48,21 @@ async def get_current_position(symbol: str):
 
 
 async def get_position_info(symbol: str) -> dict | None:
+    """Полная информация о позиции по символу"""
     try:
         positions = await retry_exchange_call(exchange.fetch_positions, [symbol])
         for pos in positions:
-            if float(pos.get('contracts', 0)) != 0:
+            contracts = float(pos.get('contracts') or 0)
+            if contracts != 0:
                 return {
+                    'symbol': symbol,
                     'side': pos['side'].lower(),
-                    'contracts': float(pos['contracts']),
-                    'entry_price': float(pos.get('entryPrice', 0)),
-                    'mark_price': float(pos.get('markPrice', 0)),
-                    'unrealized_pnl': float(pos.get('unrealizedPnl', 0)),
-                    'leverage': int(pos.get('leverage', 1)),
-                    'liquidation_price': float(pos.get('liquidationPrice', 0)),
+                    'contracts': contracts,
+                    'entry_price': float(pos.get('entryPrice') or 0),
+                    'mark_price': float(pos.get('markPrice') or 0),
+                    'unrealized_pnl': float(pos.get('unrealizedPnl') or 0),
+                    'leverage': int(pos.get('leverage') or 1),
+                    'liquidation_price': float(pos.get('liquidationPrice') or 0),
                 }
         return None
     except Exception as e:
@@ -62,22 +70,35 @@ async def get_position_info(symbol: str) -> dict | None:
         return None
 
 
-async def get_spot_balance() -> dict:
-    """Получение спот USDT баланса"""
+async def get_all_positions() -> list[dict]:
+    """
+    Получение ВСЕХ открытых позиций по всем символам.
+    Возвращает список dict с информацией о каждой позиции.
+    """
+    all_pos = []
     try:
-        balance_info = await retry_exchange_call(spot_exchange.fetch_balance)
-        usdt = balance_info.get('USDT', {})
-        return {
-            'free': float(usdt.get('free', 0)),
-            'used': float(usdt.get('used', 0)),
-            'total': float(usdt.get('total', 0)),
-        }
+        positions = await retry_exchange_call(exchange.fetch_positions, CCXT_SYMBOLS)
+        for pos in positions:
+            contracts = float(pos.get('contracts') or 0)
+            if contracts != 0:
+                all_pos.append({
+                    'symbol': pos.get('symbol', ''),
+                    'side': pos['side'].lower(),
+                    'contracts': contracts,
+                    'entry_price': float(pos.get('entryPrice') or 0),
+                    'mark_price': float(pos.get('markPrice') or 0),
+                    'unrealized_pnl': float(pos.get('unrealizedPnl') or 0),
+                    'leverage': int(pos.get('leverage') or 1),
+                })
     except Exception as e:
-        logger.error(f"Ошибка получения спот баланса: {e}")
-        return {'free': 0, 'used': 0, 'total': 0}
+        logger.error(f"Ошибка получения всех позиций: {e}")
+    return all_pos
 
+
+# === Балансы ===
 
 async def get_balance() -> dict:
+    """Баланс фьючерсного аккаунта"""
     try:
         balance_info = await retry_exchange_call(exchange.fetch_balance)
         usdt = balance_info.get('USDT', {})
@@ -91,7 +112,25 @@ async def get_balance() -> dict:
         return {'free': 0, 'used': 0, 'total': 0}
 
 
+async def get_spot_balance() -> dict:
+    """Баланс спот аккаунта"""
+    try:
+        balance_info = await retry_exchange_call(spot_exchange.fetch_balance)
+        usdt = balance_info.get('USDT', {})
+        return {
+            'free': float(usdt.get('free', 0)),
+            'used': float(usdt.get('used', 0)),
+            'total': float(usdt.get('total', 0)),
+        }
+    except Exception as e:
+        logger.error(f"Ошибка получения спот баланса: {e}")
+        return {'free': 0, 'used': 0, 'total': 0}
+
+
+# === Торговля ===
+
 async def close_position(symbol: str):
+    """Закрытие позиции по символу"""
     pos_side = await get_current_position(symbol)
     if not pos_side:
         return
@@ -120,6 +159,7 @@ async def close_position(symbol: str):
 
 
 async def place_order_with_risk(symbol: str, side: str, model, prediction: float = None):
+    """Открытие позиции с риск-менеджментом"""
     try:
         df = await fetch_ohlcv_async(symbol, limit=300)
         atr = get_atr(df)
@@ -138,6 +178,7 @@ async def place_order_with_risk(symbol: str, side: str, model, prediction: float
             logger.info(f"Размер позиции = 0 для {symbol}, пропускаем")
             return None
 
+        # Проверка минимального размера ордера
         try:
             markets = exchange.markets
             if symbol in markets:
