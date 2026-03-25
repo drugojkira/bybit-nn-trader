@@ -10,7 +10,14 @@ API_SECRET = os.getenv("BINANCE_API_SECRET") or os.getenv("BYBIT_API_SECRET")
 
 # Telegram
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
-TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
+TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")  # Основной чат (обратная совместимость)
+# Несколько чатов через запятую: "123456,789012"
+TELEGRAM_CHAT_IDS = [
+    cid.strip() for cid in os.getenv("TELEGRAM_CHAT_IDS", "").split(",") if cid.strip()
+]
+# Если TELEGRAM_CHAT_IDS не задан, используем TELEGRAM_CHAT_ID
+if not TELEGRAM_CHAT_IDS and TELEGRAM_CHAT_ID:
+    TELEGRAM_CHAT_IDS = [TELEGRAM_CHAT_ID]
 
 # Торговля
 SYMBOLS = [s.strip() for s in os.getenv("SYMBOLS", "BTCUSDT").split(",")]

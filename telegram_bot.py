@@ -26,7 +26,7 @@ from telegram.ext import (
     CommandHandler,
     ContextTypes,
 )
-from config import TELEGRAM_TOKEN, TELEGRAM_CHAT_ID, CCXT_SYMBOLS
+from config import TELEGRAM_TOKEN, TELEGRAM_CHAT_ID, TELEGRAM_CHAT_IDS, CCXT_SYMBOLS
 
 # Lazy imports — будут установлены через set_dependencies()
 _trader_module = None
@@ -50,6 +50,24 @@ def set_dependencies(trader_mod, monitor_mod, model_mod, journal_mod):
     _journal_module = journal_mod
 
 
+def _is_authorized(update: Update) -> bool:
+    """Проверяет, авторизован ли пользователь (его chat_id в списке разрешённых)"""
+    chat_id = str(update.effective_chat.id)
+    return chat_id in TELEGRAM_CHAT_IDS
+
+
+def authorized(func):
+    """Декоратор: проверяет авторизацию перед выполнением команды"""
+    async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE):
+        if not _is_authorized(update):
+            await update.message.reply_text("⛔ Нет доступа. Ваш chat_id не в списке разрешённых.")
+            logger.warning(f"Неавторизованный доступ: chat_id={update.effective_chat.id}")
+            return
+        return await func(update, context)
+    wrapper.__name__ = func.__name__
+    return wrapper
+
+
 def _get_default_symbol() -> str:
     """Возвращает первый символ из конфига"""
     return CCXT_SYMBOLS[0] if CCXT_SYMBOLS else "BTC/USDT"
@@ -71,6 +89,7 @@ def _parse_symbol(args: list) -> str:
 
 # === Команды бота ===
 
+@authorized
 async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Приветствие и список команд"""
     text = (
@@ -96,6 +115,7 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(text, parse_mode="HTML")
 
 
+@authorized
 async def cmd_status(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Текущий статус бота"""
     global trading_paused
@@ -137,6 +157,7 @@ async def cmd_status(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text('\n'.join(lines), parse_mode="HTML")
 
 
+@authorized
 async def cmd_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Статистика торговли"""
     symbol = _parse_symbol(context.args)
@@ -174,6 +195,7 @@ async def cmd_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(text, parse_mode="HTML")
 
 
+@authorized
 async def cmd_pnl(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Текущий PnL по всем позициям"""
     total_pnl = 0.0
@@ -199,6 +221,7 @@ async def cmd_pnl(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text('\n'.join(lines), parse_mode="HTML")
 
 
+@authorized
 async def cmd_balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Баланс фьючерсного и спот аккаунта"""
     if not _trader_module:
@@ -223,6 +246,7 @@ async def cmd_balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(text, parse_mode="HTML")
 
 
+@authorized
 async def cmd_positions(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Список открытых позиций"""
     lines = ["<b>📋 Открытые позиции</b>\n"]
@@ -249,6 +273,7 @@ async def cmd_positions(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text('\n'.join(lines), parse_mode="HTML")
 
 
+@authorized
 async def cmd_training(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Метрики обучения модели"""
     symbol = _parse_symbol(context.args)
@@ -290,6 +315,7 @@ async def cmd_training(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(text, parse_mode="HTML")
 
 
+@authorized
 async def cmd_chart(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """График loss обучения"""
     symbol = _parse_symbol(context.args)
@@ -311,6 +337,7 @@ async def cmd_chart(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 
+@authorized
 async def cmd_predictions(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """График предсказаний vs реальность"""
     symbol = _parse_symbol(context.args)
@@ -332,6 +359,7 @@ async def cmd_predictions(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 
+@authorized
 async def cmd_dashboard(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Полный дашборд"""
     symbol = _parse_symbol(context.args)
@@ -351,6 +379,7 @@ async def cmd_dashboard(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 
+@authorized
 async def cmd_model(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Информация о модели и версиях"""
     symbol = _parse_symbol(context.args)
@@ -381,6 +410,7 @@ async def cmd_model(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text('\n'.join(lines), parse_mode="HTML")
 
 
+@authorized
 async def cmd_rollback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Откатить модель"""
     symbol = _parse_symbol(context.args)
@@ -401,6 +431,7 @@ async def cmd_rollback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
 
+@authorized
 async def cmd_stop(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Приостановить торговлю"""
     global trading_paused
@@ -413,6 +444,7 @@ async def cmd_stop(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 
+@authorized
 async def cmd_resume(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Возобновить торговлю"""
     global trading_paused
@@ -434,9 +466,11 @@ async def init_telegram():
     """Инициализация Telegram-бота с командами"""
     global bot, app_instance
 
-    if not TELEGRAM_TOKEN or not TELEGRAM_CHAT_ID:
+    if not TELEGRAM_TOKEN or not TELEGRAM_CHAT_IDS:
         logger.warning("⚠️ Telegram не настроен (токен или chat_id отсутствует)")
         return
+
+    logger.info(f"📱 Telegram чаты: {TELEGRAM_CHAT_IDS}")
 
     app_instance = Application.builder().token(TELEGRAM_TOKEN).build()
 
@@ -500,29 +534,31 @@ async def shutdown_telegram():
 
 
 async def send_message(text: str):
-    """Отправка сообщения в чат"""
+    """Отправка сообщения во все авторизованные чаты"""
     if bot:
-        try:
-            await bot.send_message(
-                chat_id=TELEGRAM_CHAT_ID,
-                text=text,
-                parse_mode="HTML"
-            )
-        except Exception as e:
-            logger.error(f"Ошибка Telegram: {e}")
+        for chat_id in TELEGRAM_CHAT_IDS:
+            try:
+                await bot.send_message(
+                    chat_id=chat_id,
+                    text=text,
+                    parse_mode="HTML"
+                )
+            except Exception as e:
+                logger.error(f"Ошибка Telegram (chat {chat_id}): {e}")
     else:
         logger.info(f"TG: {text}")
 
 
 async def send_photo(photo_bytes, caption: str = ""):
-    """Отправка изображения в чат"""
+    """Отправка изображения во все авторизованные чаты"""
     if bot:
-        try:
-            await bot.send_photo(
-                chat_id=TELEGRAM_CHAT_ID,
-                photo=photo_bytes,
-                caption=caption,
-                parse_mode="HTML"
-            )
-        except Exception as e:
-            logger.error(f"Ошибка отправки фото в Telegram: {e}")
+        for chat_id in TELEGRAM_CHAT_IDS:
+            try:
+                await bot.send_photo(
+                    chat_id=chat_id,
+                    photo=photo_bytes,
+                    caption=caption,
+                    parse_mode="HTML"
+                )
+            except Exception as e:
+                logger.error(f"Ошибка отправки фото в Telegram (chat {chat_id}): {e}")
