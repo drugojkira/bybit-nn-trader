@@ -1,10 +1,26 @@
+# Core
 fastapi==0.115.0
 uvicorn[standard]==0.32.0
-ccxt==4.4.0
-torch==2.4.1
-pandas==2.2.3
-numpy==2.1.2
 python-dotenv==1.0.1
 loguru==0.7.2
+
+# Data & ML
+numpy==2.1.2
+pandas==2.2.3
+torch==2.4.1
+scikit-learn>=1.5.0
+
+# LightGBM (опционально: если не установлен, используется sklearn RandomForest)
+lightgbm>=4.0.0
+
+# HMM for Regime Detection
+hmmlearn>=0.3.0
+
+# Exchange & API
+ccxt==4.4.0
+
+# Telegram
 python-telegram-bot==21.9
+
+# Visualization
 matplotlib==3.9.2
