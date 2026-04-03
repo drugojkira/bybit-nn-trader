@@ -89,10 +89,10 @@ V6_RETRAIN_FULL_HOURS = float(os.getenv("V6_RETRAIN_FULL_HOURS", 24))  # Full re
 # TFT (Temporal Fusion Transformer)
 V6_TFT_CONFIG = {
     'input_size': int(os.getenv("V6_TFT_INPUT_SIZE", 50)),
-    'd_model': int(os.getenv("V6_TFT_D_MODEL", 64)),
-    'nhead': int(os.getenv("V6_TFT_NHEAD", 4)),
-    'num_layers': int(os.getenv("V6_TFT_NUM_LAYERS", 3)),
+    'hidden_size': int(os.getenv("V6_TFT_D_MODEL", 64)),
+    'attention_head_size': int(os.getenv("V6_TFT_NHEAD", 4)),
     'dropout': float(os.getenv("V6_TFT_DROPOUT", 0.1)),
+    'learning_rate': float(os.getenv("V6_TFT_LR", 1e-3)),
     'num_classes': 3,
     'quantiles': [0.02, 0.1, 0.25, 0.5, 0.75, 0.9, 0.98],
     'lookback': V6_LOOKBACK,

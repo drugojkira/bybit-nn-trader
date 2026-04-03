@@ -41,7 +41,7 @@ class WalkForwardSplit:
         n_splits: int = 5,
         val_ratio: float = 0.15,
         embargo_bars: int = 12,
-        min_train_bars: int = 500,
+        min_train_bars: int = 200,
     ):
         self.n_samples = n_samples
         self.n_splits = n_splits
@@ -142,7 +142,7 @@ class TrainPipeline:
         targets_df = compute_targets(
             df,
             horizons=[self.target_horizon],
-            threshold=self.direction_threshold,
+            direction_threshold=self.direction_threshold,
         )
 
         target_col = f'direction_{self.target_horizon}'
@@ -486,7 +486,7 @@ class QuickRetrain:
         logger.info(f"Quick retrain на {len(df_recent)} свечах")
 
         features_df = build_features(df_recent)
-        targets_df = compute_targets(df_recent, horizons=[6], threshold=0.001)
+        targets_df = compute_targets(df_recent, horizons=[6], direction_threshold=0.001)
 
         target_col = 'direction_6'
         common_idx = features_df.index.intersection(targets_df.index)

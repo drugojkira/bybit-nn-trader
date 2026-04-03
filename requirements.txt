@@ -17,7 +17,7 @@ lightgbm>=4.0.0
 hmmlearn>=0.3.0
 
 # Exchange & API
-ccxt==4.4.0
+ccxt>=4.4.0
 
 # Telegram
 python-telegram-bot==21.9

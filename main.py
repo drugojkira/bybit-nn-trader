@@ -33,7 +33,7 @@ from config import (
     V6_TFT_CONFIG, V6_LGBM_CONFIG, V6_TCN_CONFIG, V6_REGIME_CONFIG,
     V6_TRAIN_CONFIG,
 )
-from data_fetcher import watch_ohlcv_forever, fetch_ohlcv_paginated, get_atr
+from data_fetcher import watch_ohlcv_forever, fetch_ohlcv_paginated, get_atr, exchange
 from data.feature_engine import build_features, compute_targets
 from data.normalizer import TrainValNormalizer, ExpandingNormalizer
 from data.market_data import MarketDataFetcher
@@ -84,7 +84,7 @@ decision_engine = TradeDecisionEngine()
 registry: ModelRegistry = None
 
 # Market data fetcher
-market_data = MarketDataFetcher()
+market_data = MarketDataFetcher(exchange)
 
 # Task tracking
 ws_tasks: list = []
@@ -200,12 +200,15 @@ async def initial_training(symbol: str, df: pd.DataFrame):
         if result.get('normalizer'):
             normalizers[symbol] = result['normalizer']
 
+        tft_acc = summary.get('tft_mean_acc')
+        lgbm_acc = summary.get('lgbm_mean_acc')
+        tcn_acc = summary.get('tcn_mean_acc')
         await send_message(
             f"✅ <b>Обучение v6 {symbol} завершено</b>\n"
             f"Версия: {version_id}\n"
-            f"TFT acc: {summary.get('tft_mean_acc', 'N/A'):.3f}\n"
-            f"LGBM acc: {summary.get('lgbm_mean_acc', 'N/A'):.3f}\n"
-            f"TCN acc: {summary.get('tcn_mean_acc', 'N/A'):.3f}\n"
+            f"TFT acc: {f'{tft_acc:.3f}' if tft_acc is not None else 'N/A'}\n"
+            f"LGBM acc: {f'{lgbm_acc:.3f}' if lgbm_acc is not None else 'N/A'}\n"
+            f"TCN acc: {f'{tcn_acc:.3f}' if tcn_acc is not None else 'N/A'}\n"
             f"Meta-Learner: {result['meta_learner'].get_stats()}"
         )
 
@@ -432,7 +435,11 @@ async def process_new_candle(df: pd.DataFrame, symbol: str):
         # === 9. Full Retrain check ===
         last_fr = last_full_retrain_time.get(symbol, 0)
         if now - last_fr > V6_RETRAIN_FULL_HOURS * 3600:
-            asyncio.create_task(initial_training(symbol, df))
+            # Загружаем полные данные, а не буфер WebSocket
+            async def _full_retrain(sym):
+                full_df = fetch_ohlcv_paginated(sym, total_limit=10000)
+                await initial_training(sym, full_df)
+            asyncio.create_task(_full_retrain(symbol))
 
         # === 10. Периодические отчёты ===
         if candle_num % REPORT_INTERVAL_CANDLES == 0:
@@ -577,8 +584,8 @@ async def stats():
             "position": await get_current_position(symbol),
             "models_trained": {name: m.is_trained for name, m in models.items()},
             "meta_learner": meta.get_stats() if meta else None,
-            "regime": regime_detectors.get(symbol, {}).predict_regime(pd.DataFrame())[0]
-                      if symbol in regime_detectors else None,
+            "regime": regime_detectors[symbol].predict_regime(pd.DataFrame())[0]
+                      if symbol in regime_detectors and regime_detectors[symbol].is_fitted else None,
         }
     return result
 
